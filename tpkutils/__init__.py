@@ -344,69 +344,70 @@ class TPK(object):
         if not filename.endswith(".mbtiles"):
             filename = "{0}.mbtiles".format(filename)
 
-        with MBtiles(filename, "w") as mbtiles:
-            if zoom is None:
-                zoom = self.zoom_levels
-            elif isinstance(zoom, int):
-                zoom = [zoom]
+        mbtiles = MBtiles(filename, "w")
+        if zoom is None:
+            zoom = self.zoom_levels
+        elif isinstance(zoom, int):
+            zoom = [zoom]
 
-            zoom = list(zoom)
-            zoom.sort()
+        zoom = list(zoom)
+        zoom.sort()
 
-            tiles = (
-                tile
-                for tile in self.read_tiles(zoom, flip_y=True)
-                if not (
-                    drop_empty and hashlib.sha1(tile.data).hexdigest() in EMPTY_TILES
-                )
+        tiles = (
+            tile
+            for tile in self.read_tiles(zoom, flip_y=True)
+            if not (
+                drop_empty and hashlib.sha1(tile.data).hexdigest() in EMPTY_TILES
             )
+        )
 
-            mbtiles.write_tiles(tiles)
+        mbtiles.write_tiles(tiles)
 
-            if tile_bounds:
-                # Calculate bounds based on maximum zoom to be exported
-                highest_zoom = zoom[-1]
-                min_row, max_row = mbtiles.row_range(highest_zoom)
-                min_col, max_col = mbtiles.col_range(highest_zoom)
+        if tile_bounds:
+            # Calculate bounds based on maximum zoom to be exported
+            highest_zoom = zoom[-1]
+            min_row, max_row = mbtiles.row_range(highest_zoom)
+            min_col, max_col = mbtiles.col_range(highest_zoom)
 
-                # get upper left coordinate
-                xmin, ymax = mercantile.ul(min_col, min_row, highest_zoom)
+            # get upper left coordinate
+            xmin, ymax = mercantile.ul(min_col, min_row, highest_zoom)
 
-                # get bottom right coordinate
-                # since we are using ul(), we need to go 1 tile beyond the range to get the right side of the
-                # tiles we have
-                xmax, ymin = mercantile.ul(max_col + 1, max_row + 1, highest_zoom)
+            # get bottom right coordinate
+            # since we are using ul(), we need to go 1 tile beyond the range to get the right side of the
+            # tiles we have
+            xmax, ymin = mercantile.ul(max_col + 1, max_row + 1, highest_zoom)
 
-                bounds = (xmin, ymin, xmax, ymax)
+            bounds = (xmin, ymin, xmax, ymax)
 
-            else:
-                bounds = self.bounds
+        else:
+            bounds = self.bounds
 
-            # Center zoom level is middle zoom level
-            center = "{0:4f},{1:4f},{2}".format(
-                bounds[0] + (bounds[2] - bounds[0]) / 2.0,
-                bounds[1] + (bounds[3] - bounds[1]) / 2.0,
-                (zoom[0] + zoom[-1]) // 2,
-            )
+        # Center zoom level is middle zoom level
+        center = "{0:4f},{1:4f},{2}".format(
+            bounds[0] + (bounds[2] - bounds[0]) / 2.0,
+            bounds[1] + (bounds[3] - bounds[1]) / 2.0,
+            (zoom[0] + zoom[-1]) // 2,
+        )
 
-            mbtiles.meta.update(
-                {
-                    "name": self.name,
-                    "description": self.summary,  # not description, which is optional
-                    "version": self.version,
-                    "attribution": self.attribution,
-                    "tags": self.tags,
-                    "credits": self.credits,
-                    "use_constraints": self.use_constraints,
-                    "type": "overlay",
-                    "format": self.format.lower().replace("jpeg", "jpg")[:3],
-                    "bounds": ",".join("{0:4f}".format(v) for v in bounds),
-                    "center": center,
-                    "minzoom": zoom[0],
-                    "maxzoom": zoom[-1],
-                    "legend": json.dumps(self.legend) if self.legend else "",
-                }
-            )
+        mbtiles.meta.update(
+            {
+                "name": self.name,
+                "description": self.summary,  # not description, which is optional
+                "version": self.version,
+                "attribution": self.attribution,
+                "tags": self.tags,
+                "credits": self.credits,
+                "use_constraints": self.use_constraints,
+                "type": "overlay",
+                "format": self.format.lower().replace("jpeg", "jpg")[:3],
+                "bounds": ",".join("{0:4f}".format(v) for v in bounds),
+                "center": center,
+                "minzoom": zoom[0],
+                "maxzoom": zoom[-1],
+                "legend": json.dumps(self.legend) if self.legend else "",
+            }
+        )
+        return mbtiles
 
     def to_disk(
         self,
